@@ -1,0 +1,64 @@
+suite: availability and network policy
+release:
+  name: demo-api
+  namespace: demo
+tests:
+  - it: allows ingress only from allowed namespaces on the http port
+    template: templates/networkpolicy.yaml
+    asserts:
+      - isKind:
+          of: NetworkPolicy
+      - contains:
+          path: spec.policyTypes
+          content: Egress
+      - contains:
+          path: spec.ingress[0].from
+          content:
+            namespaceSelector:
+              matchLabels:
+                kubernetes.io/metadata.name: monitoring
+      - equal:
+          path: spec.ingress[0].ports[0].port
+          value: http
+      - equal:
+          path: spec.egress[0].ports[0].port
+          value: 53
+
+  - it: renders a PodDisruptionBudget by default
+    template: templates/pdb.yaml
+    asserts:
+      - isKind:
+          of: PodDisruptionBudget
+      - equal:
+          path: spec.maxUnavailable
+          value: 1
+
+  - it: targets the Rollout from the HPA
+    template: templates/hpa.yaml
+    set:
+      hpa.enabled: true
+    asserts:
+      - equal:
+          path: spec.scaleTargetRef
+          value:
+            apiVersion: argoproj.io/v1alpha1
+            kind: Rollout
+            name: demo-api
+
+  - it: does not render the HPA by default
+    template: templates/hpa.yaml
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders the ingress for prod
+    template: templates/ingress.yaml
+    values:
+      - ../../../environments/prod/values.yaml
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: demo-api.example.internal
+      - equal:
+          path: spec.ingressClassName
+          value: nginx

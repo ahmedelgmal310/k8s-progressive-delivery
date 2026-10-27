@@ -1,0 +1,53 @@
+suite: analysis template
+templates:
+  - templates/analysistemplate.yaml
+release:
+  name: demo-api
+  namespace: demo
+tests:
+  - it: queries Prometheus for canary-only success rate and p95 latency
+    asserts:
+      - isKind:
+          of: AnalysisTemplate
+      - equal:
+          path: spec.metrics[0].name
+          value: success-rate
+      - matchRegex:
+          path: spec.metrics[0].provider.prometheus.query
+          pattern: 'rollouts_pod_template_hash="\{\{args\.canary-hash\}\}"'
+      - matchRegex:
+          path: spec.metrics[0].provider.prometheus.query
+          pattern: 'code!~"5\.\."'
+      - equal:
+          path: spec.metrics[0].successCondition
+          value: len(result) > 0 && result[0] >= 0.95
+      - equal:
+          path: spec.metrics[1].name
+          value: p95-latency
+      - matchRegex:
+          path: spec.metrics[1].provider.prometheus.query
+          pattern: '^histogram_quantile\(0\.95,'
+      - equal:
+          path: spec.metrics[1].successCondition
+          value: len(result) > 0 && result[0] <= 0.3
+
+  - it: applies stricter production thresholds
+    values:
+      - ../../../environments/prod/values.yaml
+    asserts:
+      - equal:
+          path: spec.metrics[0].successCondition
+          value: len(result) > 0 && result[0] >= 0.99
+      - equal:
+          path: spec.metrics[1].successCondition
+          value: len(result) > 0 && result[0] <= 0.25
+      - equal:
+          path: spec.metrics[0].count
+          value: 6
+
+  - it: is not rendered when analysis is disabled
+    set:
+      analysis.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0

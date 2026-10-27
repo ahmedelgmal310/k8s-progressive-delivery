@@ -1,0 +1,9 @@
+# staging: production-like canary steps on a smaller footprint.
+image:
+  tag: v1 # promotion: managed by .github/workflows/promote.yml
+
+replicaCount: 4
+
+ingress:
+  enabled: true
+  host: demo-api.staging.example.internal

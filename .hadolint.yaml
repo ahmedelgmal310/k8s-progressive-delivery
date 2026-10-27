@@ -1,0 +1,4 @@
+failure-threshold: warning
+trustedRegistries:
+  - docker.io
+  - gcr.io

@@ -1,0 +1,38 @@
+# Overrides used by the kind end-to-end test (e2e/run.sh).
+image:
+  repository: demo-api
+  pullPolicy: IfNotPresent # images are side-loaded with `kind load`
+
+# 10 replicas => setWeight 10 maps to exactly 1 canary pod.
+replicaCount: 10
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi
+  limits:
+    cpu: 200m
+    memory: 64Mi
+
+rollout:
+  progressDeadlineSeconds: 300
+  canary:
+    steps:
+      - setWeight: 10
+        pause: 30s
+        analysis: true
+      - setWeight: 50
+        pause: 30s
+        analysis: true
+
+analysis:
+  prometheusAddress: http://prometheus-server.monitoring.svc.cluster.local
+  rateWindow: 1m
+  interval: 15s
+  count: 4
+  failureLimit: 1
+
+networkPolicy:
+  allowedNamespaces:
+    - monitoring
+    - loadtest

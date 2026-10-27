@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-api-staging
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: k8s-progressive-delivery
+    environment: staging
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: demo-api
+  source:
+    repoURL: https://github.com/ahmedelgmal310/k8s-progressive-delivery.git
+    targetRevision: main
+    path: charts/demo-api
+    helm:
+      releaseName: demo-api
+      valueFiles:
+        - ../../environments/staging/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo-api-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

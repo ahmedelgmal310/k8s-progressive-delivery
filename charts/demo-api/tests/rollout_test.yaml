@@ -1,0 +1,113 @@
+suite: rollout
+templates:
+  - templates/rollout.yaml
+release:
+  name: demo-api
+  namespace: demo
+tests:
+  - it: renders canary steps with analysis gates
+    asserts:
+      - isKind:
+          of: Rollout
+      - equal:
+          path: spec.strategy.canary.steps[0].setWeight
+          value: 10
+      - equal:
+          path: spec.strategy.canary.steps[1].pause.duration
+          value: 30s
+      - equal:
+          path: spec.strategy.canary.steps[2].analysis.templates[0].templateName
+          value: demo-api-canary-health
+      - equal:
+          path: spec.strategy.canary.steps[2].analysis.args[0]
+          value:
+            name: canary-hash
+            valueFrom:
+              podTemplateHashValue: Latest
+      - equal:
+          path: spec.strategy.canary.steps[3].setWeight
+          value: 50
+      - lengthEqual:
+          path: spec.strategy.canary.steps
+          count: 6
+
+  - it: drops analysis steps when analysis is disabled
+    set:
+      analysis.enabled: false
+    asserts:
+      - lengthEqual:
+          path: spec.strategy.canary.steps
+          count: 4
+      - notExists:
+          path: spec.strategy.canary.steps[2].analysis
+
+  - it: defaults the image tag to the chart appVersion
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/ahmedelgmal310/demo-api:v1
+
+  - it: pins the image by digest when provided
+    set:
+      image.tag: sha-abc1234
+      image.digest: sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: ghcr.io/ahmedelgmal310/demo-api:sha-abc1234@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+  - it: runs non-root with a read-only root filesystem
+    asserts:
+      - equal:
+          path: spec.template.spec.securityContext.runAsNonRoot
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.readOnlyRootFilesystem
+          value: true
+      - equal:
+          path: spec.template.spec.containers[0].securityContext.allowPrivilegeEscalation
+          value: false
+      - contains:
+          path: spec.template.spec.containers[0].securityContext.capabilities.drop
+          content: ALL
+      - equal:
+          path: spec.template.spec.automountServiceAccountToken
+          value: false
+
+  - it: exposes probes and Prometheus scrape annotations
+    asserts:
+      - equal:
+          path: spec.template.spec.containers[0].readinessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.spec.containers[0].livenessProbe.httpGet.path
+          value: /healthz
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/scrape"]
+          value: "true"
+      - equal:
+          path: spec.template.metadata.annotations["prometheus.io/port"]
+          value: "8080"
+
+  - it: leaves replicas to the HPA when autoscaling is enabled
+    set:
+      hpa.enabled: true
+    asserts:
+      - notExists:
+          path: spec.replicas
+
+  - it: injects runtime faults only when configured
+    set:
+      fault.errorRate: "0.2"
+      fault.latencyMs: "150"
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FAULT_ERROR_RATE
+            value: "0.2"
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: FAULT_LATENCY_MS
+            value: "150"

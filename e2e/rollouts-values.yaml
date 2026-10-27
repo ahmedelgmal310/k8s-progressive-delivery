@@ -1,0 +1,12 @@
+# Lean argoproj/argo-rollouts values for the kind e2e cluster.
+installCRDs: true
+dashboard:
+  enabled: false
+controller:
+  replicas: 1
+  metrics:
+    enabled: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi

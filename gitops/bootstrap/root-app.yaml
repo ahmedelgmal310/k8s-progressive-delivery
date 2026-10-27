@@ -1,0 +1,23 @@
+# App-of-apps root. Apply once per Argo CD instance:
+#   kubectl apply -n argocd -f gitops/bootstrap/root-app.yaml
+# Everything else (project + one Application per environment) is reconciled from gitops/apps.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo-api-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/ahmedelgmal310/k8s-progressive-delivery.git
+    targetRevision: main
+    path: gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

@@ -1,0 +1,8 @@
+{{ include "demo-api.fullname" . }} is delivered as an Argo Rollouts canary (image tag {{ include "demo-api.imageTag" . }}).
+
+Watch the rollout:
+  kubectl argo rollouts get rollout {{ include "demo-api.fullname" . }} -n {{ .Release.Namespace }} --watch
+
+Abort / promote manually:
+  kubectl argo rollouts abort   {{ include "demo-api.fullname" . }} -n {{ .Release.Namespace }}
+  kubectl argo rollouts promote {{ include "demo-api.fullname" . }} -n {{ .Release.Namespace }}

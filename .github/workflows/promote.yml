@@ -1,0 +1,68 @@
+name: Promote
+
+# When a promotion lands in one environment, open the PR for the next one:
+#   dev -> staging -> prod
+# Can also be run manually to promote any tag into any environment.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "environments/dev/values.yaml"
+      - "environments/staging/values.yaml"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        type: choice
+        options: [dev, staging, prod]
+        required: true
+      tag:
+        description: Image tag to promote (e.g. sha-1a2b3c4)
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+      - name: Open next promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
+          INPUT_ENV: ${{ inputs.environment }}
+          INPUT_TAG: ${{ inputs.tag }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh label create promotion --color 0E8A16 --description "Image promotion between environments" 2>/dev/null || true
+
+          tag_of() { sed -nE 's/^  tag: *"?([^" #]+)"?.*$/\1/p' "environments/$1/values.yaml" | head -n1; }
+
+          if [[ $EVENT == "workflow_dispatch" ]]; then
+            ./scripts/promote.sh "$INPUT_ENV" "$INPUT_TAG" "Manual promotion requested by @${GITHUB_ACTOR}."
+            exit 0
+          fi
+
+          changed=$(git diff --name-only "${BEFORE}" "${GITHUB_SHA}" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          for pair in dev:staging staging:prod; do
+            from=${pair%%:*} to=${pair##*:}
+            if grep -qx "environments/${from}/values.yaml" <<<"$changed"; then
+              git switch -q main
+              ./scripts/promote.sh "$to" "$(tag_of "$from")" "Promoted after the ${from} rollout of commit ${GITHUB_SHA}."
+            fi
+          done

@@ -1,0 +1,157 @@
+# Default values for demo-api. Environment overrides live in environments/<env>/values.yaml.
+
+replicaCount: 4
+
+image:
+  repository: ghcr.io/ahmedelgmal310/demo-api
+  # Defaults to the chart appVersion. The promotion workflow bumps this per environment.
+  tag: ""
+  # Optional immutable digest (sha256:...). When set it is appended to the reference.
+  digest: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 80
+
+# Runtime fault injection (overrides the defaults baked into the image).
+# Leave empty to use the image defaults. Useful for game days.
+fault:
+  errorRate: ""
+  latencyMs: ""
+
+resources:
+  requests:
+    cpu: 20m
+    memory: 32Mi
+  limits:
+    cpu: 250m
+    memory: 64Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 10
+  timeoutSeconds: 2
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 5
+  timeoutSeconds: 2
+  failureThreshold: 2
+
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  periodSeconds: 2
+  failureThreshold: 15
+
+# Seconds to keep serving after the pod is removed from endpoints.
+preStopSleepSeconds: 5
+terminationGracePeriodSeconds: 30
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  privileged: false
+  capabilities:
+    drop:
+      - ALL
+
+rollout:
+  revisionHistoryLimit: 3
+  progressDeadlineSeconds: 600
+  # Abort (and scale the canary down) when progressDeadlineSeconds is exceeded.
+  progressDeadlineAbort: true
+  canary:
+    maxSurge: "25%"
+    maxUnavailable: 0
+    # Each entry becomes setWeight [+ pause] [+ analysis]. After the last entry
+    # the canary is promoted to 100% and becomes the new stable ReplicaSet.
+    steps:
+      - setWeight: 10
+        pause: 30s
+        analysis: true
+      - setWeight: 50
+        pause: 30s
+        analysis: true
+
+analysis:
+  enabled: true
+  prometheusAddress: http://prometheus-server.monitoring.svc.cluster.local
+  # Window for rate() in the analysis queries.
+  rateWindow: 1m
+  interval: 20s
+  count: 4
+  # Analysis fails once failed measurements exceed this number.
+  failureLimit: 1
+  consecutiveErrorLimit: 3
+  successRate:
+    # Minimum ratio of non-5xx responses served by the canary pods.
+    min: 0.95
+  latency:
+    # Maximum p95 latency (seconds) of the canary pods.
+    maxP95Seconds: 0.3
+
+pdb:
+  enabled: true
+  maxUnavailable: 1
+
+hpa:
+  enabled: false
+  minReplicas: 4
+  maxReplicas: 12
+  targetCPUUtilizationPercentage: 70
+
+networkPolicy:
+  enabled: true
+  # Namespaces allowed to reach the HTTP port (Prometheus, ingress controller, ...).
+  allowedNamespaces:
+    - monitoring
+    - ingress-nginx
+  allowSameNamespace: true
+
+ingress:
+  enabled: false
+  className: nginx
+  annotations: {}
+  host: demo-api.local
+  tls: []
+
+topologySpreadConstraints:
+  enabled: true
+  maxSkew: 1
+  topologyKey: kubernetes.io/hostname
+  whenUnsatisfiable: ScheduleAnyway
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

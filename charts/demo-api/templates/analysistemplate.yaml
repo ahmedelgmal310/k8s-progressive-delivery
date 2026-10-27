@@ -1,0 +1,45 @@
+{{- if .Values.analysis.enabled }}
+{{- $a := .Values.analysis }}
+{{- $sel := `namespace="{{args.namespace}}",rollouts_pod_template_hash="{{args.canary-hash}}",route="/"` }}
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "demo-api.analysisTemplateName" . }}
+  labels:
+    {{- include "demo-api.labels" . | nindent 4 }}
+spec:
+  args:
+    # Pod template hash of the canary ReplicaSet (injected by the Rollout).
+    - name: canary-hash
+    - name: namespace
+  metrics:
+    # Ratio of non-5xx responses served by canary pods only.
+    - name: success-rate
+      interval: {{ $a.interval }}
+      count: {{ $a.count }}
+      failureLimit: {{ $a.failureLimit }}
+      consecutiveErrorLimit: {{ $a.consecutiveErrorLimit }}
+      successCondition: len(result) > 0 && result[0] >= {{ $a.successRate.min }}
+      failureCondition: len(result) > 0 && (isNaN(result[0]) || result[0] < {{ $a.successRate.min }})
+      provider:
+        prometheus:
+          address: {{ $a.prometheusAddress }}
+          query: |
+            sum(rate(http_requests_total{ {{- $sel }},code!~"5.."}[{{ $a.rateWindow }}]))
+            /
+            sum(rate(http_requests_total{ {{- $sel }}}[{{ $a.rateWindow }}]))
+    # p95 latency of canary pods only.
+    - name: p95-latency
+      interval: {{ $a.interval }}
+      count: {{ $a.count }}
+      failureLimit: {{ $a.failureLimit }}
+      consecutiveErrorLimit: {{ $a.consecutiveErrorLimit }}
+      successCondition: len(result) > 0 && result[0] <= {{ $a.latency.maxP95Seconds }}
+      failureCondition: len(result) > 0 && (isNaN(result[0]) || result[0] > {{ $a.latency.maxP95Seconds }})
+      provider:
+        prometheus:
+          address: {{ $a.prometheusAddress }}
+          query: |
+            histogram_quantile(0.95,
+              sum by (le) (rate(http_request_duration_seconds_bucket{ {{- $sel }}}[{{ $a.rateWindow }}])))
+{{- end }}

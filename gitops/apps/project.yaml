@@ -1,0 +1,36 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: demo-api
+  namespace: argocd
+spec:
+  description: demo-api across dev, staging and prod
+  sourceRepos:
+    - https://github.com/ahmedelgmal310/k8s-progressive-delivery.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: demo-api-dev
+    - server: https://kubernetes.default.svc
+      namespace: demo-api-staging
+    - server: https://kubernetes.default.svc
+      namespace: demo-api-prod
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: ""
+      kind: Service
+    - group: ""
+      kind: ServiceAccount
+    - group: argoproj.io
+      kind: Rollout
+    - group: argoproj.io
+      kind: AnalysisTemplate
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: networking.k8s.io
+      kind: NetworkPolicy
+    - group: networking.k8s.io
+      kind: Ingress

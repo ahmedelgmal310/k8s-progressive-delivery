@@ -1,0 +1,45 @@
+# prod: slow, conservative canary with autoscaling and stricter SLOs.
+image:
+  tag: v1 # promotion: managed by .github/workflows/promote.yml
+
+hpa:
+  enabled: true
+  minReplicas: 10
+  maxReplicas: 30
+  targetCPUUtilizationPercentage: 65
+
+pdb:
+  maxUnavailable: 2
+
+rollout:
+  canary:
+    steps:
+      - setWeight: 10
+        pause: 2m
+        analysis: true
+      - setWeight: 25
+        pause: 2m
+        analysis: true
+      - setWeight: 50
+        pause: 5m
+        analysis: true
+
+analysis:
+  interval: 30s
+  count: 6
+  successRate:
+    min: 0.99
+  latency:
+    maxP95Seconds: 0.25
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 48Mi
+  limits:
+    cpu: 500m
+    memory: 96Mi
+
+ingress:
+  enabled: true
+  host: demo-api.example.internal

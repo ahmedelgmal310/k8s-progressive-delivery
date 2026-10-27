@@ -1,0 +1,26 @@
+# dev: fast feedback, single fast canary step.
+image:
+  tag: v1 # promotion: managed by .github/workflows/release.yml
+
+replicaCount: 2
+
+rollout:
+  canary:
+    steps:
+      - setWeight: 50
+        pause: 30s
+        analysis: true
+
+analysis:
+  count: 3
+
+pdb:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 24Mi
+  limits:
+    cpu: 200m
+    memory: 64Mi

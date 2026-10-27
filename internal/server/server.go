@@ -189,7 +189,7 @@ func (s *Server) Serve(ctx context.Context, ln net.Listener, shutdownTimeout tim
 	}
 
 	s.logger.Info("shutting down")
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), shutdownTimeout)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		return err

@@ -58,7 +58,12 @@ jobs:
             exit 0
           fi
 
-          changed=$(git diff --name-only "${BEFORE}" "${GITHUB_SHA}" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          if [[ $BEFORE =~ ^0+$ ]]; then
+            echo "Initial push of the branch: nothing to promote"
+            exit 0
+          fi
+          git fetch -q --depth=1 origin "$BEFORE"
+          changed=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
           for pair in dev:staging staging:prod; do
             from=${pair%%:*} to=${pair##*:}
             if grep -qx "environments/${from}/values.yaml" <<<"$changed"; then

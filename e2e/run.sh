@@ -77,9 +77,9 @@ wait_promoted() {
     phase=$(ro '{.status.phase}')
     stable=$(ro '{.status.stableRS}')
     abort=$(ro '{.status.abort}')
-    if [[ "$phase/$(ro '{.status.currentStepIndex}')" != "$last" ]]; then
-      last="$phase/$(ro '{.status.currentStepIndex}')"
-      log "  phase=${phase} step=$(ro '{.status.currentStepIndex}') weight=$(ro '{.status.canary.weights.canary.weight}') stable=${stable}"
+    if [[ "$phase/$(ro '{.status.currentStepIndex}')/$(ro '{.status.updatedReplicas}')" != "$last" ]]; then
+      last="$phase/$(ro '{.status.currentStepIndex}')/$(ro '{.status.updatedReplicas}')"
+      log "  phase=${phase} step=$(ro '{.status.currentStepIndex}') canary_pods=$(ro '{.status.updatedReplicas}')/${REPLICAS} stable=${stable}"
     fi
     if [[ $abort == "true" ]]; then
       die "rollout of ${hash} was aborted: $(ro '{.status.message}')"
@@ -100,9 +100,9 @@ wait_aborted() {
   while ((SECONDS < deadline)); do
     abort=$(ro '{.status.abort}')
     phase=$(ro '{.status.phase}')
-    if [[ "$phase/$(ro '{.status.currentStepIndex}')" != "$last" ]]; then
-      last="$phase/$(ro '{.status.currentStepIndex}')"
-      log "  phase=${phase} step=$(ro '{.status.currentStepIndex}') abort=${abort:-false}"
+    if [[ "$phase/$(ro '{.status.currentStepIndex}')/$(ro '{.status.updatedReplicas}')" != "$last" ]]; then
+      last="$phase/$(ro '{.status.currentStepIndex}')/$(ro '{.status.updatedReplicas}')"
+      log "  phase=${phase} step=$(ro '{.status.currentStepIndex}') canary_pods=$(ro '{.status.updatedReplicas}')/${REPLICAS} abort=${abort:-false}"
     fi
     if [[ $(ro '{.status.stableRS}') == "$canary" ]]; then
       die "bad revision ${canary} was promoted to stable"

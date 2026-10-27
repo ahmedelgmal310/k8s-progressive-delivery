@@ -1,6 +1,6 @@
 # staging: production-like canary steps on a smaller footprint.
 image:
-  tag: v1 # promotion: managed by .github/workflows/promote.yml
+  tag: sha-a9f3a4b # promotion: managed by .github/workflows/promote.yml
 
 replicaCount: 4
 

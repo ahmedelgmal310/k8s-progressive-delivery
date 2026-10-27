@@ -1,6 +1,6 @@
 # dev: fast feedback, single fast canary step.
 image:
-  tag: v1 # promotion: managed by .github/workflows/release.yml
+  tag: sha-b5adf82 # promotion: managed by .github/workflows/release.yml
 
 replicaCount: 2
 
